@@ -1,0 +1,8 @@
+agent:
+  name: research-agent
+  type: ai-agent
+  role: research-agent
+
+tools:
+  - web-search
+  - document-reader

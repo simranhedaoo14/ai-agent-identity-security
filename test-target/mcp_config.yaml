@@ -1,0 +1,13 @@
+mcp_servers:
+  filesystem:
+    type: mcp-server
+    permissions:
+      - file:read
+      - file:write
+
+  internal-api:
+    type: mcp-server
+    permissions:
+      - customer:read
+      - ticket:read
+      

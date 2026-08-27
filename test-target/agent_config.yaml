@@ -1,0 +1,14 @@
+agent:
+  name: customer-support-agent
+  type: ai-agent
+  role: support-agent
+
+  tools:
+    - name: ticketing
+      permissions:
+        - ticket:read
+        - ticket:write
+
+    - name: customer-db
+      permissions:
+        - customer:read
