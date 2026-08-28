@@ -31,6 +31,9 @@ def scan_file(file_path: Path) -> list[Finding]:
                         file_path=str(file_path),
                         line_number=line_number,
                         description=rule["description"],
+                        metadata={
+                            "credential_name": line.split("=")[0].strip()
+                        }
                     )
                 )
 

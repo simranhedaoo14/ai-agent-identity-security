@@ -3,6 +3,14 @@ agent:
   type: ai-agent
   role: research-agent
 
-tools:
-  - web-search
-  - document-reader
+  credentials:
+    - OPENAI_API_KEY
+
+  tools:
+    - name: web-search
+      permissions:
+        - search:read
+
+    - name: document-reader
+      permissions:
+        - document:read

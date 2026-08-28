@@ -3,6 +3,9 @@ agent:
   type: ai-agent
   role: support-agent
 
+  credentials:
+    - OPENAI_API_KEY
+
   tools:
     - name: ticketing
       permissions:

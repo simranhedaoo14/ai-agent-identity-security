@@ -15,3 +15,5 @@ class Finding(BaseModel):
     blast_radius: int = 0
 
     risk_score: int = 0
+
+    metadata: dict = {}
