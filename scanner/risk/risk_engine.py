@@ -1,5 +1,8 @@
 from scanner.analyzers.nhi_model import NHIProfile
 
+from scanner.risk.resource_sensitivity import (
+    get_resource_sensitivity
+)
 
 def calculate_credential_risk(agent: NHIProfile) -> int:
     """
@@ -95,28 +98,81 @@ def calculate_exposure_risk(agent: NHIProfile) -> int:
 
 def calculate_blast_radius(agent: NHIProfile) -> int:
     """
-    Estimate how much of the system the NHI can affect.
+    Calculate blast radius based on:
+    - Number of tools
+    - Number of permissions
+    - Resource sensitivity
+    - Write/admin capabilities
 
-    Maximum score: 25.
+    Maximum score: 25
     """
+
+    permissions = []
+
+    for tool in agent.tools:
+        permissions.extend(tool.permissions)
+
+    if not permissions:
+        return 0
 
     tool_count = len(agent.tools)
 
-    permission_count = sum(
-        len(tool.permissions)
-        for tool in agent.tools
-    )
+    permission_count = len(permissions)
 
     score = 0
 
-    # Number of tools
-    score += min(tool_count * 4, 10)
+    # --------------------------------------
+    # Tool breadth
+    # --------------------------------------
 
-    # Number of permissions
-    score += min(permission_count * 2, 10)
+    score += min(tool_count * 3, 6)
 
-    # Multiple credentials increase potential reach
-    if len(agent.credentials) > 1:
+    # --------------------------------------
+    # Permission breadth
+    # --------------------------------------
+
+    score += min(permission_count * 2, 8)
+
+    # --------------------------------------
+    # Resource sensitivity
+    # --------------------------------------
+
+    sensitivity_scores = [
+        get_resource_sensitivity(permission)
+        for permission in permissions
+    ]
+
+    max_sensitivity = max(
+        sensitivity_scores
+    )
+
+    if max_sensitivity == 5:
+        score += 7
+
+    elif max_sensitivity == 4:
+        score += 5
+
+    elif max_sensitivity == 3:
+        score += 3
+
+    else:
+        score += 1
+
+    # --------------------------------------
+    # Write / destructive capabilities
+    # --------------------------------------
+
+    if any(
+        ":write" in permission.lower()
+        for permission in permissions
+    ):
+        score += 2
+
+    if any(
+        "delete" in permission.lower()
+        or "admin" in permission.lower()
+        for permission in permissions
+    ):
         score += 5
 
     return min(score, 25)
