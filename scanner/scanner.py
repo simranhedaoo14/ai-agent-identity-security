@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from scanner.risk.risk_engine import calculate_risk
 from scanner.analyzers.secret_detector import scan_file
 from scanner.analyzers.agent_detector import detect_agent_config
 from scanner.analyzers.mcp_detector import detect_mcp_config
@@ -111,18 +112,28 @@ def scan_directory(directory: str):
     # Phase 3: Display NHI Profiles
     # ==========================================
 
-    print("=" * 50)
-    print("NHI IDENTITY PROFILES")
-    print("=" * 50)
+        # ==========================================
+    # Phase 3: Risk Assessment
+    # ==========================================
+
+    print("=" * 60)
+    print("NHI SECURITY ASSESSMENT")
+    print("=" * 60)
     print()
 
     for profile in nhi_profiles:
 
+        risk = calculate_risk(profile)
+
+        profile.risk_score = risk["total_score"]
+
         print(f"Identity: {profile.name}")
         print(f"Role: {profile.role}")
+        print()
+
+        print("Credentials:")
 
         if profile.credentials:
-            print("Credentials:")
 
             for credential in profile.credentials:
                 print(
@@ -130,14 +141,10 @@ def scan_directory(directory: str):
                     f"({credential.provider})"
                 )
 
-                print(
-                    f"    Location: "
-                    f"{credential.file_path}:"
-                    f"{credential.line_number}"
-                )
-
         else:
-            print("Credentials: None correlated")
+            print("  None correlated")
+
+        print()
 
         print("Tools:")
 
@@ -146,6 +153,39 @@ def scan_directory(directory: str):
                 f"  - {tool.name}: "
                 f"{tool.permissions}"
             )
+
+        print()
+
+        print("Risk Assessment:")
+        print(
+            f"  Credential Risk : "
+            f"{risk['credential_risk']}/25"
+        )
+
+        print(
+            f"  Privilege Risk  : "
+            f"{risk['privilege_risk']}/30"
+        )
+
+        print(
+            f"  Exposure Risk   : "
+            f"{risk['exposure_risk']}/20"
+        )
+
+        print(
+            f"  Blast Radius    : "
+            f"{risk['blast_radius']}/25"
+        )
+
+        print(
+            f"  TOTAL RISK      : "
+            f"{risk['total_score']}/100"
+        )
+
+        print(
+            f"  SEVERITY        : "
+            f"{risk['severity']}"
+        )
 
         print()
         
