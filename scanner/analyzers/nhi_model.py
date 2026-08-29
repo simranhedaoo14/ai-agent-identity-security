@@ -15,13 +15,30 @@ class Credential(BaseModel):
     line_number: int
 
 
+class MCPServer(BaseModel):
+    name: str
+    permissions: List[str] = Field(default_factory=list)
+
+
 class NHIProfile(BaseModel):
     name: str
     identity_type: str
     role: str
 
-    credential_references: List[str] = Field(default_factory=list)
-    credentials: List[Credential] = Field(default_factory=list)
-    tools: List[Tool] = Field(default_factory=list)
+    credential_references: List[str] = Field(
+        default_factory=list
+    )
+
+    credentials: List[Credential] = Field(
+        default_factory=list
+    )
+
+    tools: List[Tool] = Field(
+        default_factory=list
+    )
+
+    mcp_servers: List[MCPServer] = Field(
+        default_factory=list
+    )
 
     risk_score: int = 0

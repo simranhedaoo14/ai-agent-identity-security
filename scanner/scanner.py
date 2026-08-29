@@ -5,6 +5,7 @@ from scanner.analyzers.secret_detector import scan_file
 from scanner.analyzers.agent_detector import detect_agent_config
 from scanner.analyzers.mcp_detector import detect_mcp_config
 from scanner.analyzers.nhi_correlator import correlate_credentials
+from scanner.analyzers.mcp_correlator import correlate_mcp_servers
 
 
 def scan_directory(directory: str):
@@ -19,6 +20,7 @@ def scan_directory(directory: str):
     total_findings = 0
     credential_findings = []
     nhi_profiles = []
+    mcp_findings = []
 
     # ==========================================
     # Phase 1: Scan repository
@@ -89,12 +91,16 @@ def scan_directory(directory: str):
 
             for server in mcp_servers:
                 total_findings += 1
+                mcp_findings.append(server)
+
+                mcp = server["server"]
 
                 print("[FOUND] MCP Server")
-                print(f"  Name: {server['name']}")
+                print(f"  Name: {mcp.name}")
+                print(f"  Permissions: {mcp.permissions}")
                 print(
-                    f"  Permissions: "
-                    f"{server['permissions']}"
+                    f"  Allowed Agents: "
+                    f"{server['allowed_agents']}"
                 )
                 print(f"  File: {server['file']}")
                 print()
@@ -108,11 +114,16 @@ def scan_directory(directory: str):
         credential_findings
     )
 
+    nhi_profiles = correlate_mcp_servers(
+        nhi_profiles,
+        mcp_findings
+    )
+
     # ==========================================
     # Phase 3: Display NHI Profiles
     # ==========================================
 
-        # ==========================================
+    # ==========================================
     # Phase 3: Risk Assessment
     # ==========================================
 
@@ -155,6 +166,19 @@ def scan_directory(directory: str):
             )
 
         print()
+
+        print("MCP Servers:")
+
+        if profile.mcp_servers:
+
+            for server in profile.mcp_servers:
+                print(
+                    f"  - {server.name}: "
+                    f"{server.permissions}"
+                )
+
+        else:
+            print("  None")
 
         print("Risk Assessment:")
         print(

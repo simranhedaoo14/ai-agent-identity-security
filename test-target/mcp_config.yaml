@@ -1,13 +1,19 @@
 mcp_servers:
   filesystem:
     type: mcp-server
+    allowed_agents:
+      - customer-support-agent
+
     permissions:
       - file:read
       - file:write
 
   internal-api:
     type: mcp-server
+    allowed_agents:
+      - customer-support-agent
+      - research-agent
+
     permissions:
       - customer:read
       - ticket:read
-      

@@ -4,6 +4,22 @@ from scanner.risk.resource_sensitivity import (
     get_resource_sensitivity
 )
 
+def get_all_permissions(agent: NHIProfile) -> list[str]:
+    """Return direct tool + MCP permissions for an NHI."""
+
+    permissions = []
+
+    # Direct agent tools
+    for tool in agent.tools:
+        permissions.extend(tool.permissions)
+
+    # MCP server permissions
+    for server in agent.mcp_servers:
+        permissions.extend(server.permissions)
+
+    return permissions
+
+
 def calculate_credential_risk(agent: NHIProfile) -> int:
     """
     Calculate risk associated with credentials assigned to an NHI.
@@ -37,10 +53,7 @@ def calculate_privilege_risk(agent: NHIProfile) -> int:
     Maximum score: 30
     """
 
-    permissions = []
-
-    for tool in agent.tools:
-        permissions.extend(tool.permissions)
+    permissions = get_all_permissions(agent)
 
     if not permissions:
         return 0
@@ -107,10 +120,7 @@ def calculate_blast_radius(agent: NHIProfile) -> int:
     Maximum score: 25
     """
 
-    permissions = []
-
-    for tool in agent.tools:
-        permissions.extend(tool.permissions)
+    permissions = get_all_permissions(agent)
 
     if not permissions:
         return 0
