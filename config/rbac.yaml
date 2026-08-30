@@ -1,0 +1,21 @@
+roles:
+
+  support-agent:
+    permissions:
+      - ticket:read
+      - ticket:write
+      - customer:read
+
+  research-agent:
+    permissions:
+      - search:read
+      - document:read
+
+  admin-agent:
+    permissions:
+      - ticket:read
+      - ticket:write
+      - customer:read
+      - customer:write
+      - user:read
+      - user:write
