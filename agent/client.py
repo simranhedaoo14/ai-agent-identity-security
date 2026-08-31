@@ -2,7 +2,7 @@ import requests
 
 
 BROKER_URL = "http://127.0.0.1:8001"
-API_URL = "http://127.0.0.1:8000"
+API_URL = "http://127.0.0.1:8002"
 
 
 def request_access(
@@ -12,8 +12,7 @@ def request_access(
     task_id: str,
     duration_minutes: int = 5
 ):
-
-    response = requests.post(
+    return requests.post(
         f"{BROKER_URL}/access/request",
         json={
             "agent_name": agent_name,
@@ -24,28 +23,27 @@ def request_access(
         }
     )
 
-    return response
-
 
 def call_ticket_api(
     token: str,
     ticket_id: str
 ):
-
-    response = requests.get(
+    return requests.get(
         f"{API_URL}/tickets/{ticket_id}",
         headers={
             "Authorization": f"Bearer {token}"
         }
     )
 
-    return response
-
 
 if __name__ == "__main__":
 
     print("AI Agent Simulator")
     print("=" * 40)
+
+    # ======================================
+    # 1. Legitimate JIT Access Request
+    # ======================================
 
     response = request_access(
         agent_name="customer-support-agent",
@@ -56,30 +54,159 @@ if __name__ == "__main__":
 
     print("\nAccess Request:")
     print(response.status_code)
-    print(response.text)
 
-# --------------------------------------
-# Adversarial Test: Privilege Escalation
-# --------------------------------------
+    if response.status_code != 200:
+        print(response.text)
+        exit()
 
-print("\n" + "=" * 40)
-print("ADVERSARIAL TEST")
-print("=" * 40)
+    grant = response.json()
 
-malicious_response = request_access(
-    agent_name="customer-support-agent",
-    role="support-agent",
-    permission="customer:write",
-    task_id="ticket-123"
-)
+    token = grant["token"]
 
-print("\nPrivilege Escalation Attempt:")
-print(
-    f"Status Code: "
-    f"{malicious_response.status_code}"
-)
+    print("JIT access granted.")
+    print(
+        f"Grant ID: {grant['grant_id']}"
+    )
 
-print(
-    f"Response: "
-    f"{malicious_response.text}"
-)
+    print(
+        f"Expires: {grant['expires_at']}"
+    )
+
+    # ======================================
+    # 2. Legitimate API Request
+    # ======================================
+
+    api_response = call_ticket_api(
+        token,
+        "ticket-123"
+    )
+
+    print("\nProtected API:")
+    print(api_response.status_code)
+    print(api_response.text)
+
+    # ======================================
+    # 3. Privilege Escalation Test
+    # ======================================
+
+    print("\n" + "=" * 40)
+    print("ADVERSARIAL TEST")
+    print("=" * 40)
+
+    malicious_response = request_access(
+        agent_name="customer-support-agent",
+        role="support-agent",
+        permission="customer:write",
+        task_id="ticket-123"
+    )
+
+    print("\nPrivilege Escalation Attempt:")
+    print(
+        f"Status Code: "
+        f"{malicious_response.status_code}"
+    )
+
+    print(
+        f"Response: "
+        f"{malicious_response.text}"
+    )
+
+    # ======================================
+    # 4. Token Scope Abuse Test
+    # ======================================
+
+    print("\n" + "=" * 40)
+    print("TOKEN SCOPE ABUSE TEST")
+    print("=" * 40)
+
+    scope_abuse_response = requests.post(
+        f"{API_URL}/customers/123",
+        headers={
+            "Authorization": f"Bearer {token}"
+        }
+    )
+
+    print("\nUsing ticket:read token")
+    print(
+        "Attempting customer:write operation"
+    )
+
+    print(
+        f"Status Code: "
+        f"{scope_abuse_response.status_code}"
+    )
+
+    print(
+        f"Response: "
+        f"{scope_abuse_response.text}"
+    )
+
+
+    # ======================================
+    # 5. Real-Time Revocation Test
+    # ======================================
+
+    print("\n" + "=" * 40)
+    print("REAL-TIME REVOCATION TEST")
+    print("=" * 40)
+
+    # First verify that the token currently works
+    before_revoke = call_ticket_api(
+        token,
+        "ticket-123"
+    )
+
+    print("\nBefore revocation:")
+    print(
+        f"Status Code: "
+        f"{before_revoke.status_code}"
+    )
+
+    print(
+        f"Response: "
+        f"{before_revoke.text}"
+    )
+
+
+    # --------------------------------------
+    # Revoke the grant
+    # --------------------------------------
+
+    revoke_response = requests.post(
+        f"{BROKER_URL}/access/revoke/"
+        f"{grant['grant_id']}"
+    )
+
+    print("\nRevoking grant:")
+
+    print(
+        f"Status Code: "
+        f"{revoke_response.status_code}"
+    )
+
+    print(
+        f"Response: "
+        f"{revoke_response.text}"
+    )
+
+
+    # --------------------------------------
+    # Try using the same JWT
+    # --------------------------------------
+
+    after_revoke = call_ticket_api(
+        token,
+        "ticket-123"
+    )
+
+    print("\nAfter revocation:")
+
+    print(
+        f"Status Code: "
+        f"{after_revoke.status_code}"
+    )
+
+    print(
+        f"Response: "
+        f"{after_revoke.text}"
+    )

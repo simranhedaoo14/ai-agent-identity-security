@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -17,6 +18,7 @@ class JITAccessBroker:
         self.token_service = TokenService()
         self.revocation_store = RevocationStore()
 
+        self.redis = self.revocation_store.redis
         self.active_grants = {}
 
     def request_access(
@@ -81,6 +83,14 @@ class JITAccessBroker:
             token=token
         )
 
+        self.redis.set(
+            f"grant:{grant_id}",
+            grant.model_dump_json(),
+            ex=(
+                request.duration_minutes * 60
+            )
+        )
+
         self.active_grants[grant_id] = grant
 
         log_event(
@@ -107,6 +117,11 @@ class JITAccessBroker:
             return False
 
         grant.status = "revoked"
+
+        self.redis.set(
+            f"grant:{grant_id}",
+            grant.model_dump_json()
+        )
 
         self.revocation_store.revoke(
             grant_id
@@ -142,17 +157,23 @@ class JITAccessBroker:
         if not grant_id:
             return False
 
+        # Check centralized revocation state
         if self.revocation_store.is_revoked(
             grant_id
         ):
             return False
 
-        grant = self.active_grants.get(
-            grant_id
+        # Check centralized grant state
+        grant_data = self.redis.get(
+            f"grant:{grant_id}"
         )
 
-        if not grant:
+        if not grant_data:
             return False
+
+        grant = AccessGrant.model_validate_json(
+            grant_data
+        )
 
         if grant.status != "active":
             return False
