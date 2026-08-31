@@ -1,3 +1,0 @@
-{"timestamp": "2026-08-31T10:33:47.173687+00:00", "event_type": "ACCESS_GRANT", "agent": "customer-support-agent", "permission": "ticket:read", "task_id": "ticket-123", "result": "GRANTED", "reason": "RBAC policy allowed permission"}
-{"timestamp": "2026-08-31T10:33:47.238437+00:00", "event_type": "ACCESS_REQUEST", "agent": "customer-support-agent", "permission": "customer:write", "task_id": "ticket-123", "result": "DENIED", "reason": "RBAC policy denied permission"}
-{"timestamp": "2026-08-31T10:33:47.299598+00:00", "event_type": "ACCESS_REVOKE", "agent": "customer-support-agent", "permission": "ticket:read", "task_id": "ticket-123", "result": "REVOKED", "reason": "Grant manually revoked"}
