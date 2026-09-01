@@ -13,7 +13,7 @@ def scan_directory(directory: str):
 
     if not path.exists():
         print(f"Directory does not exist: {directory}")
-        return
+        return None
 
     print(f"Scanning: {path.resolve()}\n")
 
@@ -120,10 +120,6 @@ def scan_directory(directory: str):
     )
 
     # ==========================================
-    # Phase 3: Display NHI Profiles
-    # ==========================================
-
-    # ==========================================
     # Phase 3: Risk Assessment
     # ==========================================
 
@@ -132,11 +128,17 @@ def scan_directory(directory: str):
     print("=" * 60)
     print()
 
+    risk_results = []
+
     for profile in nhi_profiles:
 
         risk = calculate_risk(profile)
 
         profile.risk_score = risk["total_score"]
+
+        # --------------------------------------
+        # Terminal Output
+        # --------------------------------------
 
         print(f"Identity: {profile.name}")
         print(f"Role: {profile.role}")
@@ -181,6 +183,7 @@ def scan_directory(directory: str):
             print("  None")
 
         print("Risk Assessment:")
+
         print(
             f"  Credential Risk : "
             f"{risk['credential_risk']}/25"
@@ -212,15 +215,43 @@ def scan_directory(directory: str):
         )
 
         print()
-        
+
+        # --------------------------------------
+        # Structured Result
+        # --------------------------------------
+
+        risk_results.append({
+            "profile": profile,
+            "risk": risk
+        })
+
     # ==========================================
     # Final Summary
     # ==========================================
 
     print("-" * 50)
-    print(f"Scan complete. Findings: {total_findings}")
-    print(f"NHIs discovered: {len(nhi_profiles)}")
+    print(
+        f"Scan complete. Findings: "
+        f"{total_findings}"
+    )
+    print(
+        f"NHIs discovered: "
+        f"{len(nhi_profiles)}"
+    )
     print("-" * 50)
+
+    # ==========================================
+    # Return Structured Results
+    # ==========================================
+
+    return {
+        "directory": str(path.resolve()),
+        "total_findings": total_findings,
+        "credential_findings": credential_findings,
+        "nhi_profiles": nhi_profiles,
+        "mcp_findings": mcp_findings,
+        "risk_results": risk_results
+    }
 
 
 if __name__ == "__main__":
