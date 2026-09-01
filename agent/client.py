@@ -64,6 +64,7 @@ if __name__ == "__main__":
     token = grant["token"]
 
     print("JIT access granted.")
+
     print(
         f"Grant ID: {grant['grant_id']}"
     )
@@ -101,6 +102,7 @@ if __name__ == "__main__":
     )
 
     print("\nPrivilege Escalation Attempt:")
+
     print(
         f"Status Code: "
         f"{malicious_response.status_code}"
@@ -127,6 +129,7 @@ if __name__ == "__main__":
     )
 
     print("\nUsing ticket:read token")
+
     print(
         "Attempting customer:write operation"
     )
@@ -141,22 +144,58 @@ if __name__ == "__main__":
         f"{scope_abuse_response.text}"
     )
 
+    # ======================================
+    # 5. Repeated Privilege Escalation Test
+    # ======================================
+
+    print("\n" + "=" * 40)
+    print("REPEATED PRIVILEGE ESCALATION TEST")
+    print("=" * 40)
+
+    attack_permissions = [
+        "customer:write",
+        "user:write",
+        "admin:write"
+    ]
+
+    for permission in attack_permissions:
+
+        attack_response = request_access(
+            agent_name="customer-support-agent",
+            role="support-agent",
+            permission=permission,
+            task_id="ticket-123"
+        )
+
+        print(
+            f"\n{permission}: "
+            f"{attack_response.status_code}"
+        )
+
+        print(
+            f"Response: "
+            f"{attack_response.text}"
+        )
 
     # ======================================
-    # 5. Real-Time Revocation Test
+    # 6. Real-Time Revocation Test
     # ======================================
 
     print("\n" + "=" * 40)
     print("REAL-TIME REVOCATION TEST")
     print("=" * 40)
 
-    # First verify that the token currently works
+    # --------------------------------------
+    # Verify token works before revocation
+    # --------------------------------------
+
     before_revoke = call_ticket_api(
         token,
         "ticket-123"
     )
 
     print("\nBefore revocation:")
+
     print(
         f"Status Code: "
         f"{before_revoke.status_code}"
@@ -166,7 +205,6 @@ if __name__ == "__main__":
         f"Response: "
         f"{before_revoke.text}"
     )
-
 
     # --------------------------------------
     # Revoke the grant
@@ -189,9 +227,8 @@ if __name__ == "__main__":
         f"{revoke_response.text}"
     )
 
-
     # --------------------------------------
-    # Try using the same JWT
+    # Try using same JWT after revocation
     # --------------------------------------
 
     after_revoke = call_ticket_api(

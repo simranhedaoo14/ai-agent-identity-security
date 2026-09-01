@@ -6,6 +6,10 @@ import streamlit as st
 import json
 import pandas as pd
 
+from scanner.detection.behavior_detector import (
+    detect_privilege_escalation
+)
+
 # ==========================================
 # Project Path
 # ==========================================
@@ -608,3 +612,78 @@ else:
         use_container_width=True,
         hide_index=True
     )
+
+
+# ==========================================
+# Behavioral Security Detection
+# ==========================================
+
+st.divider()
+
+st.subheader("🚨 Security Alerts")
+
+
+# Load the actual audit events from the
+# dashboard's existing cached loader.
+behavior_events = load_audit_events()
+
+
+# Run behavioral detection on the events.
+alerts = detect_privilege_escalation(
+    behavior_events
+)
+
+
+if not alerts:
+
+    st.success(
+        "No suspicious NHI behavior detected."
+    )
+
+else:
+
+    st.warning(
+        f"{len(alerts)} suspicious "
+        f"NHI behavior pattern(s) detected."
+    )
+
+    for alert in alerts:
+
+        with st.expander(
+            f"🔴 {alert['alert_type']} — "
+            f"{alert['agent']}"
+        ):
+
+            st.write(
+                f"**Severity:** "
+                f"{alert['severity']}"
+            )
+
+            st.write(
+                f"**Agent:** "
+                f"{alert['agent']}"
+            )
+
+            st.write(
+                f"**Denied Requests:** "
+                f"{alert['denied_requests']}"
+            )
+
+            st.write(
+                f"**Time Window:** "
+                f"{alert['time_window_seconds']} seconds"
+            )
+
+            st.markdown(
+                "**Permissions Attempted:**"
+            )
+
+            for permission in alert[
+                "permissions"
+            ]:
+
+                st.code(permission)
+
+            st.error(
+                alert["message"]
+            )
