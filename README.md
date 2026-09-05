@@ -1,142 +1,254 @@
-# AI Agent Identity & JIT Access Security Platform
+# AI Agent Identity & Access Security Platform
 
-An AI security platform designed to secure **AI agents and other Non-Human Identities (NHIs)** through identity discovery, risk assessment, least-privilege authorization, and Just-In-Time (JIT) access control.
+A security platform for managing and monitoring **Non-Human Identities (NHIs)** such as AI agents and MCP-based tools.
 
-## Problem
-
-AI agents increasingly interact with APIs, databases, files, MCP servers, and other enterprise resources. Using static, long-lived credentials for these agents creates significant security risks because a compromised credential or manipulated agent can inherit all of its permissions.
-
-This project explores how **IAM principles can be applied to AI agents** by treating them as first-class identities with controlled, temporary, and auditable access.
+The project applies traditional IAM and security principles to AI agents by implementing **identity discovery, risk assessment, RBAC authorization, Just-In-Time (JIT) access, real-time revocation, behavioral detection, and SIEM-based monitoring**.
 
 ## Security Lifecycle
 
-**Discover → Assess → Authenticate → Authorize → Grant → Monitor → Revoke**
+```text
+Discover → Assess Risk → Authenticate → Authorize → Grant JIT Access
+                                         ↓
+                              Monitor → Detect → Revoke
+```
 
-## Planned Capabilities
+## Key Features
 
-### NHI Inventory & Risk Scanner
+### NHI / AI Agent Discovery
+Scans a project/repository to identify AI agents, roles, credentials, tools, permissions, MCP servers, and MCP permissions.
 
-* Detect hardcoded API keys, tokens, and service credentials
-* Identify AI-agent and MCP configurations
-* Analyze credential lifetime and permission scope
-* Calculate identity risk and potential blast radius
+### NHI Risk Scoring
+Each NHI receives a **0–100 risk score** based on:
+- Credential Risk
+- Privilege Risk
+- Exposure Risk
+- Blast Radius
 
-### Identity & RBAC Policy Engine
+Example:
+```text
+customer-support-agent → 64/100 HIGH
+research-agent         → 68/100 HIGH
+```
 
-* Assign identities to AI agents
-* Define roles and permissions
-* Enforce least-privilege access
-* Prevent unauthorized privilege escalation
+### RBAC Authorization
+Role-Based Access Control prevents agents from requesting arbitrary permissions.
 
-### Just-In-Time Access Broker
+```text
+Role: support-agent
 
-* Accept task-specific access requests from AI agents
-* Validate identity and authorization policies
-* Issue short-lived, scoped access tokens
-* Track active grants
-* Support early token revocation
+Allowed:
+    ticket:read
+    ticket:write
 
-### Protected Mock APIs
+Denied:
+    customer:write
+    user:write
+    admin:write
+```
 
-* Simulated ticketing, customer, document, and administrative services
-* Enforce access policies on every request
-* Provide a controlled environment for security testing
+### Just-In-Time Access
+Permissions are granted only when required for a specific task.
 
-### Audit & Detection
+```text
+Agent → Access Request → RBAC Validation → JIT Grant → Short-lived JWT → Protected API
+```
 
-* Record access requests, grants, denials, and revocations
-* Detect unusual resource-access patterns
-* Track identity risk changes
-* Generate security alerts
+Each grant contains the agent identity, role, permission, task ID, grant ID, and expiration time.
 
-### Adversarial Testing
+### Token Scope Enforcement
+JWTs are scoped to the granted permission. A `ticket:read` token cannot be used for a `customer:write` operation.
 
-The platform will include simulated compromised-agent scenarios such as:
+Expected result:
+```text
+HTTP 403 Forbidden
+```
 
-* Privilege escalation attempts
-* Unauthorized resource access
-* Expired-token replay
-* Revoked-token usage
-* Excessive resource enumeration
+### Real-Time Token Revocation
+Redis-backed shared state allows previously valid access grants to be revoked immediately rather than relying only on JWT expiration.
 
-## Technology Stack
+```text
+Before revoke → 200 OK
+After revoke  → 401 Unauthorized
+```
 
-* Python
-* FastAPI
-* LangChain
-* PostgreSQL
-* Redis
-* Semgrep
-* Streamlit
-* Docker
-* Pytest
+### Behavioral Threat Detection
+Repeated denied authorization requests from the same NHI within a short time window trigger a privilege-escalation alert.
 
-## Project Status
+```text
+customer:write → DENIED
+user:write     → DENIED
+admin:write    → DENIED
 
-Currently implementing the **NHI Inventory & Risk Scanner**.
+PRIVILEGE_ESCALATION
+Severity: HIGH
+```
 
-### Completed
+### Wazuh SIEM Integration
+Application security events are written to `logs/audit.jsonl`. Wazuh consumes the structured JSON events and applies custom detection rules.
 
-* Initial project structure
-* Repository scanning
-* API credential detection
-* OpenAI API key detection
-* GitHub token detection
-* AWS access-key detection
-* Duplicate finding prevention
+Example:
+```text
+Rule ID: 100100
+Level: 12
+NHI attempted denied administrative permission
+```
 
-### In Progress
+The resulting Wazuh alerts are surfaced in the Streamlit security dashboard.
 
-* AI-agent configuration detection
-* MCP configuration analysis
-* NHI risk scoring
-* Blast-radius calculation
+## Adversarial Security Testing
+
+The project validates its controls through simulated attacks:
+
+### Privilege Escalation
+Unauthorized permissions such as `customer:write`, `user:write`, and `admin:write` are rejected by RBAC.
+
+### Token Scope Abuse
+A token issued for `ticket:read` is tested against a `customer:write` operation and receives `403 Forbidden`.
+
+### Token Replay After Revocation
+A valid token is tested before and after its grant is revoked:
+
+```text
+Before revoke → 200 OK
+After revoke  → 401 Unauthorized
+```
 
 ## Architecture
 
-The final architecture will connect NHI discovery and risk assessment with an identity-aware JIT access control system.
-
 ```text
-NHI Scanner
-     │
-     ▼
-Identity Inventory
-     │
-     ▼
-Risk Assessment
-     │
-     ▼
-Agent Identity
-     │
-     ▼
-RBAC Policy Engine
-     │
-     ▼
-JIT Access Broker
-     │
-     ▼
-Short-Lived Access
-     │
-     ▼
-Protected APIs
-     │
-     ▼
-Audit + Detection
-     │
-     ▼
-Revocation
+                    ┌──────────────────────┐
+                    │     NHI Scanner      │
+                    │ Agents / Tools / MCP │
+                    │ Credentials          │
+                    └──────────┬───────────┘
+                               ↓
+                    ┌──────────────────────┐
+                    │     Risk Engine      │
+                    │ Credential / Privilege│
+                    │ Exposure / Blast     │
+                    └──────────┬───────────┘
+                               ↓
+                    ┌──────────────────────┐
+                    │   JIT Access Broker  │
+                    │       FastAPI        │
+                    │ RBAC / JWT / Revoke  │
+                    └───────┬───────┬──────┘
+                            │       │
+                       ┌────▼───┐   │
+                       │ Redis  │   │
+                       │ Grant  │   │
+                       │ State  │   │
+                       └────────┘   ↓
+                         ┌──────────────────┐
+                         │  Protected APIs  │
+                         │ JWT + Scope      │
+                         │ Enforcement      │
+                         └────────┬─────────┘
+                                  ↓
+                         ┌──────────────────┐
+                         │  Audit Logging   │
+                         │     JSONL         │
+                         └────────┬─────────┘
+                                  ↓
+                         ┌──────────────────┐
+                         │      Wazuh       │
+                         │       SIEM       │
+                         │ Detection Rules  │
+                         └────────┬─────────┘
+                                  ↓
+                         ┌──────────────────┐
+                         │ Streamlit Console│
+                         └──────────────────┘
 ```
 
-## Security Focus
+## Technology Stack
 
-This project focuses on the intersection of:
+**Backend:** Python, FastAPI, REST APIs, JWT
 
-* AI Security
-* Identity & Access Management (IAM)
-* Non-Human Identity (NHI) Security
-* Least Privilege
-* Just-In-Time Access
-* Credential Security
-* Authorization
-* Security Monitoring
-* Adversarial Testing
+**Identity & Security:** IAM, RBAC, NHI Security, AI Agent Security, MCP Security, JIT Access, Least Privilege, Token Revocation, Threat Detection
+
+**Infrastructure:** Redis, Docker, Wazuh SIEM
+
+**Dashboard:** Streamlit, Pandas
+
+**Development:** Git, GitHub, Python Virtual Environment
+
+## Project Structure
+
+```text
+ai-agent-identity-security/
+├── agent/
+│   └── client.py
+├── broker/
+│   └── api.py
+├── protected_api/
+│   └── api.py
+├── scanner/
+│   ├── scanner.py
+│   ├── analyzers/
+│   ├── detection/
+│   └── risk/
+├── dashboard/
+│   ├── app.py
+│   └── styles.css
+├── logs/
+│   └── audit.jsonl
+├── .env
+├── .gitignore
+└── README.md
+```
+
+## Challenges & Engineering Decisions
+
+### Stateless JWT vs. Real-Time Revocation
+Short-lived JWTs alone cannot provide immediate revocation. Redis was introduced as shared state for tracking active and revoked grants.
+
+### Detecting AI-Agent Privilege Escalation
+Authentication logs alone do not establish malicious intent. Behavioral detection was added to identify repeated denied requests from the same NHI within a defined time window.
+
+### Wazuh Custom Log Integration
+Custom AI-agent audit events required structured JSON logging, Wazuh JSON decoding, custom rules, ruleset testing, and validation through real attack simulations.
+
+The final implementation successfully generated a **Level 12 Wazuh alert** for a denied administrative permission request.
+
+### Explainable Risk Scoring
+Instead of assigning arbitrary risk labels, the platform separates risk into credential, privilege, exposure, and blast-radius dimensions so that the reason behind an NHI's risk level is visible.
+
+### Safe Security Testing
+Protected APIs are intentionally mocked so privilege escalation, token abuse, revocation, and SIEM detection can be demonstrated without interacting with real production systems.
+
+## Current Security Demonstration
+
+```text
+AI Agent
+   ↓
+Unauthorized Permission Request
+   ↓
+JIT Broker
+   ↓
+RBAC DENIED
+   ↓
+Audit Log
+   ↓
+Wazuh Rule 100100
+   ↓
+HIGH-SEVERITY ALERT
+   ↓
+Security Dashboard
+```
+
+## Future Improvements
+
+- ABAC / policy-based authorization
+- OAuth 2.0 / workload identity integration
+- Short-lived credentials for external services
+- Automated NHI remediation
+- Agent behavior baselining
+- ML-based anomaly detection
+- More comprehensive MCP security policies
+- Automated response to high-risk identities
+- Additional SIEM/SOAR integrations
+
+## Disclaimer
+
+This project is an educational security research and portfolio implementation. External services and production credentials are not used for attack simulations. Protected APIs are intentionally mocked to demonstrate identity, authorization, monitoring, and detection controls safely.

@@ -2,13 +2,85 @@ import sys
 from pathlib import Path
 
 import streamlit as st
-
 import json
 import pandas as pd
+import subprocess
+
+
+# ==========================================
+# Project Path
+# ==========================================
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+
+# ==========================================
+# Project Imports
+# ==========================================
 
 from scanner.detection.behavior_detector import (
     detect_privilege_escalation
 )
+
+from scanner.scanner import scan_directory
+# ==========================================
+# Wazuh Alerts
+# ==========================================
+
+def load_wazuh_alerts():
+    alerts = []
+
+    result = subprocess.run(
+        [
+            "docker",
+            "exec",
+            "single-node-wazuh.manager-1",
+            "cat",
+            "/var/ossec/logs/alerts/alerts.json"
+        ],
+        capture_output=True,
+        text=True,
+        timeout=5
+    )
+
+    if result.returncode != 0:
+        st.error(
+            f"Wazuh alert read failed: {result.stderr}"
+        )
+        return alerts
+
+    for line in result.stdout.splitlines():
+
+        if not line.strip():
+            continue
+
+        try:
+            alert = json.loads(line)
+
+            rule = alert.get("rule", {})
+            data = alert.get("data", {})
+
+            # Handle both string and integer rule IDs
+            if str(rule.get("id")) == "100100":
+
+                alerts.append({
+                    "timestamp": alert.get("timestamp"),
+                    "rule_id": str(rule.get("id")),
+                    "level": rule.get("level"),
+                    "description": rule.get("description"),
+                    "agent": data.get("agent"),
+                    "permission": data.get("permission"),
+                    "result": data.get("result"),
+                    "task_id": data.get("task_id")
+                })
+
+        except json.JSONDecodeError:
+            continue
+
+    return alerts
 
 # ==========================================
 # Project Path
@@ -612,6 +684,36 @@ else:
         use_container_width=True,
         hide_index=True
     )
+
+
+# ==========================================
+# Wazuh Security Alerts
+# ==========================================
+
+st.divider()
+
+st.subheader("🚨 Wazuh Security Alerts")
+
+wazuh_alerts = load_wazuh_alerts()
+
+if wazuh_alerts:
+
+    for alert in reversed(wazuh_alerts):
+
+        st.error(
+            f"**{alert['description']}**\n\n"
+            f"**NHI:** `{alert['agent']}`  \n"
+            f"**Permission:** `{alert['permission']}`  \n"
+            f"**Result:** `{alert['result']}`  \n"
+            f"**Rule:** `{alert['rule_id']}`  \n"
+            f"**Level:** `{alert['level']}`  \n"
+            f"**Task:** `{alert['task_id']}`  \n"
+            f"**Timestamp:** `{alert['timestamp']}`"
+        )
+
+else:
+
+    st.success("No Wazuh security alerts detected.")
 
 
 # ==========================================
